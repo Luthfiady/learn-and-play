@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]      # auto-deploy setiap push ke main
+  workflow_dispatch:       # bisa juga dijalankan manual dari tab Actions
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Stamp versi cache service worker dengan commit hash,
+      # supaya PWA yang sudah terpasang di tablet otomatis ambil versi baru.
+      - name: Stamp service worker cache version
+        env:
+          SHORT_SHA: ${{ github.sha }}
+        run: sed -i "s/const CACHE = '[^']*'/const CACHE = 'lp-${SHORT_SHA:0:8}'/" app/sw.js
+        shell: bash
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

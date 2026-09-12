@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7ec8e3"/>
+      <stop offset="1" stop-color="#8ed081"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="196" r="120" fill="#fff8ec"/>
+  <text x="256" y="238" font-family="Arial,Helvetica,sans-serif" font-size="140" font-weight="bold" text-anchor="middle" fill="#a882dd">123</text>
+  <g font-family="Arial,Helvetica,sans-serif" font-size="86" font-weight="bold" text-anchor="middle">
+    <text x="150" y="430" fill="#ff8c69">+</text>
+    <text x="256" y="430" fill="#ffd23f">−</text>
+    <text x="362" y="430" fill="#fff8ec">=</text>
+  </g>
+</svg>
