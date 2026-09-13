@@ -565,8 +565,9 @@ function qMulDiv(op){
 const EN={
   boys:['William','Adam','Kevin','Daniel','Rafi','Bima','Alex','Leo','Noah','Arka'],
   girls:['Sarah','Emma','Mia','Nadia','Salsa','Lily','Aisha','Zoe','Kayla','Naura'],
-  toys:[['scooter','🛴'],['ball','⚽'],['robot','🤖'],['doll','🪆'],['car','🚗'],['kite','🪁'],['teddy bear','🧸'],['bicycle','🚲'],['puzzle','🧩'],['train','🚂'],['drum','🥁'],['blocks','🧱']],
-  boyAv:['👦','🧒','👦🏽','👦🏻'], girlAv:['👧','👧🏽','👧🏻','🧒']
+  toys:[['scooter','🛴'],['ball','⚽'],['robot','🤖'],['doll','🪆'],['car','🚗'],['kite','🪁'],['teddy bear','🧸'],['bicycle','🚲'],['puzzle','🧩'],['train','🚂'],['drum','🥁'],['blocks','🧱',1]],
+  boyAv:['👦','👦🏻','👦🏼','👦🏽','👦🏾'],
+  girlAv:['👧','👧🏻','👧🏼','👧🏽','👧🏾']
 };
 function genChar(){
   const male=Math.random()>.5;
@@ -601,7 +602,8 @@ function sentenceOptions(correct,distractors){
     box.appendChild(b);
   });
 }
-const aAn=w=>(/^[aeiou]/i.test(w)?'an ':'a ')+w;
+// mainan plural (mis. "blocks") tidak pakai artikel: "a blocks" → "blocks"
+const aAn=(w,plural)=>plural?w:(/^[aeiou]/i.test(w)?'an ':'a ')+w;
 
 // Tipe 1-3: baca kartu, jawab pertanyaan (name / age / toy)
 function qEnAnswer(kind){
@@ -619,9 +621,9 @@ function qEnAnswer(kind){
     d=[`${c2.he} is ${c.age}.`, `${c.he} is ${oa}.`, `${c.his} name is ${c.name}.`];
   }else{
     q=`What is ${c.hisL} favorite toy?`;
-    ans=`${c.his} favorite toy is ${aAn(c.toy[0])}.`;
+    ans=`${c.his} favorite toy is ${aAn(c.toy[0],c.toy[2])}.`;
     const ot=otherToy(c);
-    d=[`${c2.his} favorite toy is ${aAn(c.toy[0])}.`, `${c.his} favorite toy is ${aAn(ot[0])}.`, `${c.he} is ${c.age}.`];
+    d=[`${c2.his} favorite toy is ${aAn(c.toy[0],c.toy[2])}.`, `${c.his} favorite toy is ${aAn(ot[0],ot[2])}.`, `${c.he} is ${c.age}.`];
   }
   setQ(`${charLabel(c)} ${q}`);
   $('qhead').innerHTML='Read the card and choose the correct answer';
@@ -636,7 +638,7 @@ function qEnPronoun(){
   let sentence,ans;
   if(v==='name'){sentence=`<span class="blank">?</span> name is ${c.name}.`;ans=c.his}
   else if(v==='age'){sentence=`<span class="blank">?</span> is ${c.age} years old.`;ans=c.he}
-  else if(v==='toy'){sentence=`<span class="blank">?</span> favorite toy is ${aAn(c.toy[0])}.`;ans=c.his}
+  else if(v==='toy'){sentence=`<span class="blank">?</span> favorite toy is ${aAn(c.toy[0],c.toy[2])}.`;ans=c.his}
   else{sentence=`${c.name} is a ${c.male?'boy':'girl'}. <span class="blank">?</span> is ${c.age}.`;ans=c.he}
   setQ(`${charLabel(c)} ${sentence.replace(/<span class="blank">\?<\/span>/,'___')}`);
   $('qhead').innerHTML='Fill in the blank';
@@ -657,7 +659,7 @@ function qEnAsk(){
   let ansSent,q;
   if(kind==='name'){ansSent=`${c.his} name is ${c.name}.`;q=`What is ${c.hisL} name?`}
   else if(kind==='age'){ansSent=`${c.he} is ${c.age}.`;q=`How old is ${c.heL}?`}
-  else{ansSent=`${c.his} favorite toy is ${aAn(c.toy[0])}.`;q=`What is ${c.hisL} favorite toy?`}
+  else{ansSent=`${c.his} favorite toy is ${aAn(c.toy[0],c.toy[2])}.`;q=`What is ${c.hisL} favorite toy?`}
   const oh=c.male?'her':'his', ohe=c.male?'she':'he';
   const pool={
     name:[`What is ${oh} name?`,`How old is ${c.heL}?`,`What is ${c.hisL} favorite toy?`],
