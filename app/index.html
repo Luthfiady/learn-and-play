@@ -127,6 +127,19 @@
   .tally.ok .tv{color:var(--ok)}
   .tally.no .tv{color:var(--no)}
   .score-stars{font-size:clamp(34px,7vw,54px);margin:14px 0 24px;letter-spacing:6px}
+  /* review jawaban salah (untuk orang tua) */
+  .review{margin:0 0 22px;text-align:left}
+  .review[hidden]{display:none}
+  .review-title{font-family:'Baloo 2';font-size:19px;font-weight:700;opacity:.7;margin-bottom:10px;text-align:center}
+  .review-list{display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:4px}
+  .review-item{background:#fff;border-radius:18px;padding:12px 15px;box-shadow:0 4px 0 var(--shadow);border-left:6px solid var(--no)}
+  .review-q{font-family:'Baloo 2';font-size:17px;font-weight:700;line-height:1.35;margin-bottom:7px}
+  .review-q .n{color:var(--grape);margin-right:5px}
+  .review-row{font-size:15px;line-height:1.45;display:flex;gap:8px;align-items:baseline}
+  .review-row .k{opacity:.55;flex:0 0 72px}
+  .review-row b{font-family:'Baloo 2';font-weight:700}
+  .review-row.bad b{color:var(--no)}
+  .review-row.good b{color:var(--ok)}
   .score-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
   .btn{border:none;border-radius:24px;padding:18px 30px;cursor:pointer;font-family:'Baloo 2';font-size:22px;font-weight:700;color:#fff;box-shadow:0 6px 0 var(--shadow);transition:transform .08s}
   .btn:active{transform:translateY(3px);box-shadow:0 3px 0 var(--shadow)}
@@ -226,6 +239,10 @@
           <div class="tally no"><span class="ic">❌</span><span class="tv" id="tallyWrong">0</span><span class="tl">Wrong</span></div>
         </div>
         <div class="score-stars" id="scoreStars">⭐⭐⭐</div>
+        <div class="review" id="review" hidden>
+          <div class="review-title">📋 Review — wrong answers</div>
+          <div class="review-list" id="reviewList"></div>
+        </div>
         <div class="score-actions">
           <button class="btn again" id="againBtn">🔁 Play again</button>
           <button class="btn menu" id="menuBtn">🏠 Menu</button>
@@ -286,11 +303,17 @@ const Sound=(()=>{
 })();
 
 /* ============ STATE ============ */
-const app={stars:0,subject:null,mode:null,total:10,idx:0,score:0,wrong:0};
+const app={stars:0,subject:null,mode:null,total:10,idx:0,score:0,wrong:0,mistakes:[]};
 const $=id=>document.getElementById(id);
 const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
 const EMO=['🍎','🍌','⭐','🐶','🐱','🎈','🍩','🐟','🌸','🚗','🦋','🍓'];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ============ LABEL SOAL AKTIF (dipakai review jawaban salah) ============ */
+let curQ='';
+function setQ(t){curQ=t}
+function charLabel(c){return `[${c.name} · ${c.age} · ${c.toy[1]} ${c.toy[0]}]`}
 
 /* ============ NAV ============ */
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
@@ -314,7 +337,7 @@ function goHome(){
 }
 
 function startSession(){
-  app.idx=0;app.score=0;app.wrong=0;
+  app.idx=0;app.score=0;app.wrong=0;app.mistakes=[];
   if(Sound.isOn())Sound.startMusic();
   show('play');$('homeBtn').classList.remove('hidden');$('progress').classList.remove('hidden');
   nextQuestion();
@@ -327,8 +350,10 @@ function onCorrect(){
   showFeedback(pick(['🎉','🌟','🥳','👏']),pick(['Great!','Yay!','Correct!','Well done!']));
   setTimeout(advance,1250);
 }
-function onWrong(){
-  app.wrong++;Sound.wrong();
+function onWrong(picked,correct){
+  app.wrong++;
+  app.mistakes.push({n:app.idx+1,q:curQ,picked:picked===undefined?'—':String(picked),correct:correct===undefined?'—':String(correct)});
+  Sound.wrong();
   showFeedback('❌',pick(['Wrong','Not quite','Oops!']));
   setTimeout(advance,1250);   // salah = tetap lanjut ke soal berikutnya
 }
@@ -358,8 +383,22 @@ function endSession(){
   $('tallyRight').textContent=right;
   $('tallyWrong').textContent=wrong;
   $('scoreStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  renderReview();
   show('scoreScreen');$('progress').classList.add('hidden');
   bigConfetti();
+}
+
+// daftar soal yang dijawab salah, supaya orang tua bisa mengoreksi bersama anak
+function renderReview(){
+  const box=$('review'), list=$('reviewList');
+  if(!app.mistakes.length){box.hidden=true;list.innerHTML='';return}
+  box.hidden=false;
+  list.innerHTML=app.mistakes.map(m=>`
+    <div class="review-item">
+      <div class="review-q"><span class="n">${m.n}.</span>${esc(m.q)}</div>
+      <div class="review-row bad"><span class="k">Answered</span><b>${esc(m.picked)}</b></div>
+      <div class="review-row good"><span class="k">Correct</span><b>${esc(m.correct)}</b></div>
+    </div>`).join('');
 }
 
 /* ============ QUESTION ROUTER ============ */
@@ -389,6 +428,7 @@ function groupHTML(n,emo){let s='<div class="emoji-group">';for(let i=0;i<n;i++)
 function qAddSub(op){
   let a,b,ans;
   if(op==='+'){a=rnd(1,9);b=rnd(1,9);ans=a+b}else{a=rnd(2,10);b=rnd(1,a);ans=a-b}
+  setQ(`${a} ${op} ${b} = ?`);
   const emo=pick(EMO);
   $('qhead').innerHTML=(op==='+'?'How many in total?':'How many are left?');
   $('qbody').innerHTML=`
@@ -402,6 +442,7 @@ function qLargerSmaller(){
   const wantLarger=Math.random()>.5;
   $('qhead').innerHTML=`Tap the ${wantLarger?'LARGER':'SMALLER'} number`;
   const target=wantLarger?Math.max(a,b):Math.min(a,b);
+  setQ(`Tap the ${wantLarger?'LARGER':'SMALLER'} number — ${a} or ${b}`);
   compareCards([a,b],v=>v===target);
 }
 function qFewerMore(){
@@ -409,10 +450,11 @@ function qFewerMore(){
   const wantMore=Math.random()>.5;
   $('qhead').innerHTML=`Tap the group with ${wantMore?'MORE':'FEWER'}`;
   const target=wantMore?Math.max(a,b):Math.min(a,b);
+  setQ(`Tap the group with ${wantMore?'MORE':'FEWER'} — ${a} ${emo} or ${b} ${emo}`);
   $('qbody').innerHTML=`<div class="compare-wrap" id="cw"></div>`;
   [a,b].forEach(n=>{
     const box=document.createElement('div');box.className='compare-box';box.innerHTML=groupHTML(n,emo);
-    box.onclick=()=>{if(n===target){box.classList.add('pick-ok');lock();onCorrect()}else{box.classList.add('pick-no');lock();onWrong()}};
+    box.onclick=()=>{if(n===target){box.classList.add('pick-ok');lock();onCorrect()}else{box.classList.add('pick-no');lock();onWrong(`${n} ${emo}`,`${target} ${emo}`)}};
     $('cw').appendChild(box);
   });
 }
@@ -421,6 +463,7 @@ function qEstremes(){
   const wantLargest=Math.random()>.5;
   $('qhead').innerHTML=`Tap the ${wantLargest?'LARGEST':'SMALLEST'} number`;
   const target=wantLargest?Math.max(...nums):Math.min(...nums);
+  setQ(`Tap the ${wantLargest?'LARGEST':'SMALLEST'} number — ${nums.join(', ')}`);
   compareCards(nums,v=>v===target);
 }
 function qBetween(){
@@ -431,6 +474,7 @@ function qBetween(){
     const gap=pick([2,4]);              // 2→satu tengah, 4→satu tengah
     const a=rnd(1,20-gap),c=a+gap,ans=a+gap/2;
     $('qhead').innerHTML=`Which number is in the MIDDLE of ${a} and ${c}?`;
+    setQ(`Which number is in the MIDDLE of ${a} and ${c}?`);
     $('qbody').innerHTML=`
       <div class="prompt-card"><span class="bignum">${a}</span><span class="op">…</span><span class="bignum" style="color:var(--coral)">?</span><span class="op">…</span><span class="bignum">${c}</span></div>
       <div class="options" id="opts"></div>`;
@@ -443,6 +487,7 @@ function qBetween(){
   const a=rnd(1,20-gap),c=a+gap;
   const answers=[];for(let x=a+1;x<c;x++)answers.push(x);
   $('qhead').innerHTML=`Tap ALL the numbers between ${a} and ${c}`;
+  setQ(`Tap ALL the numbers between ${a} and ${c}`);
 
   // opsi = semua jawaban benar + beberapa distraktor (di luar range)
   const opts=new Set(answers);
@@ -482,7 +527,7 @@ function qBetween(){
     }else{
       // tandai pilihan anak yang salah (merah), jangan bocorkan yang benar, lalu lanjut
       box.querySelectorAll('.opt').forEach(b=>{if(picked.has(+b.dataset.v))b.classList.add('no')});
-      onWrong();
+      onWrong([...picked].sort((x,y)=>x-y).join(', '),answers.join(', '));
     }
   };
 }
@@ -496,6 +541,7 @@ function qMulDiv(op){
     // pembagian tanpa sisa: bikin dari perkalian dulu
     b=rnd(1,5);ans=rnd(1,5);a=b*ans; // a ÷ b = ans
   }
+  setQ(`${a} ${op} ${b} = ?`);
   const emo=pick(EMO);
   $('qhead').innerHTML=(op==='×'?'How many in total?':'How many in each group?');
   // visual: perkalian = b baris x a; pembagian = a benda dibagi b grup
@@ -551,7 +597,7 @@ function sentenceOptions(correct,distractors){
   const box=$('opts');box.innerHTML='';box.classList.remove('three');box.classList.add('sent');
   vals.forEach(v=>{
     const b=document.createElement('button');b.className='opt sent';b.textContent=v;
-    b.onclick=()=>{if(v===correct){b.classList.add('ok');lock();onCorrect()}else{b.classList.add('no');lock();onWrong()}};
+    b.onclick=()=>{if(v===correct){b.classList.add('ok');lock();onCorrect()}else{b.classList.add('no');lock();onWrong(v,correct)}};
     box.appendChild(b);
   });
 }
@@ -577,6 +623,7 @@ function qEnAnswer(kind){
     const ot=otherToy(c);
     d=[`${c2.his} favorite toy is ${aAn(c.toy[0])}.`, `${c.his} favorite toy is ${aAn(ot[0])}.`, `${c.he} is ${c.age}.`];
   }
+  setQ(`${charLabel(c)} ${q}`);
   $('qhead').innerHTML='Read the card and choose the correct answer';
   $('qbody').innerHTML=charCard(c)+`<div class="q-sentence">${q}</div><div class="options" id="opts"></div>`;
   sentenceOptions(ans,d);
@@ -591,13 +638,14 @@ function qEnPronoun(){
   else if(v==='age'){sentence=`<span class="blank">?</span> is ${c.age} years old.`;ans=c.he}
   else if(v==='toy'){sentence=`<span class="blank">?</span> favorite toy is ${aAn(c.toy[0])}.`;ans=c.his}
   else{sentence=`${c.name} is a ${c.male?'boy':'girl'}. <span class="blank">?</span> is ${c.age}.`;ans=c.he}
+  setQ(`${charLabel(c)} ${sentence.replace(/<span class="blank">\?<\/span>/,'___')}`);
   $('qhead').innerHTML='Fill in the blank';
   $('qbody').innerHTML=charCard(c)+`<div class="q-sentence">${sentence}</div><div class="options" id="opts"></div>`;
   const vals=['He','She','His','Her'].sort(()=>Math.random()-.5);
   const box=$('opts');box.innerHTML='';box.classList.remove('three','sent');
   vals.forEach(w=>{
     const b=document.createElement('button');b.className='opt word';b.textContent=w;
-    b.onclick=()=>{if(w===ans){b.classList.add('ok');lock();onCorrect()}else{b.classList.add('no');lock();onWrong()}};
+    b.onclick=()=>{if(w===ans){b.classList.add('ok');lock();onCorrect()}else{b.classList.add('no');lock();onWrong(w,ans)}};
     box.appendChild(b);
   });
 }
@@ -616,6 +664,7 @@ function qEnAsk(){
     age:[`How old is ${ohe}?`,`What is ${c.hisL} name?`,`What is ${c.hisL} favorite toy?`],
     toy:[`What is ${oh} favorite toy?`,`What is ${c.hisL} name?`,`How old is ${c.heL}?`]
   }[kind];
+  setQ(`${charLabel(c)} 💬 ${ansSent}`);
   $('qhead').innerHTML='Which question matches the answer?';
   $('qbody').innerHTML=charCard(c)+`<div class="q-sentence">💬 ${ansSent}</div><div class="options" id="opts"></div>`;
   sentenceOptions(q,pool);
@@ -630,17 +679,18 @@ function buildOptions(ans,count,fmt,distractorFn){
   vals.length===3?box.classList.add('three'):box.classList.remove('three');
   vals.forEach(v=>{
     const b=document.createElement('button');b.className='opt';b.textContent=fmt(v);
-    b.onclick=()=>{if(v===ans){b.classList.add('ok');lock();onCorrect()}else{b.classList.add('no');lock();onWrong()}};
+    b.onclick=()=>{if(v===ans){b.classList.add('ok');lock();onCorrect()}else{b.classList.add('no');lock();onWrong(fmt(v),fmt(ans))}};
     box.appendChild(b);
   });
 }
 function compareCards(nums,isRight){
+  const rightVal=nums.find(isRight);
   $('qbody').innerHTML=`<div class="compare-wrap" id="cw"></div>`;
   const wrap=$('cw');if(nums.length>2)wrap.style.maxWidth='820px';
   nums.forEach(n=>{
     const box=document.createElement('div');box.className='compare-box';box.style.minWidth=nums.length>2?'150px':'200px';
     box.innerHTML=`<div class="cnt">${n}</div>`;
-    box.onclick=()=>{if(isRight(n)){box.classList.add('pick-ok');lock();onCorrect()}else{box.classList.add('pick-no');lock();onWrong()}};
+    box.onclick=()=>{if(isRight(n)){box.classList.add('pick-ok');lock();onCorrect()}else{box.classList.add('pick-no');lock();onWrong(n,rightVal)}};
     wrap.appendChild(box);
   });
 }
